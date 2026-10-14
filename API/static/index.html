@@ -1,0 +1,411 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neurona MP | Análisis experimental</title>
+
+    <style>
+        :root {
+            --fondo: #050816;
+            --panel: #0d1428;
+            --borde: #263451;
+            --cian: #00ffff;
+            --violeta: #b84dff;
+            --texto: #edf4ff;
+            --secundario: #9baac5;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 30px 18px;
+            background: var(--fondo);
+            color: var(--texto);
+            font-family: Arial, sans-serif;
+        }
+
+        .contenedor {
+            max-width: 1100px;
+            margin: auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .etiqueta {
+            color: var(--cian);
+            font-size: 12px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+
+        h1 {
+            font-size: clamp(28px, 5vw, 42px);
+            margin-bottom: 10px;
+        }
+
+        h1 span {
+            color: var(--cian);
+        }
+
+        header p,
+        .descripcion {
+            color: var(--secundario);
+            line-height: 1.7;
+        }
+
+        .panel {
+            padding: 24px;
+            margin-bottom: 22px;
+            background: var(--panel);
+            border: 1px solid var(--borde);
+            border-radius: 16px;
+        }
+
+        h2 {
+            margin-top: 0;
+            font-size: 20px;
+        }
+
+        .descripcion {
+            font-size: 14px;
+        }
+
+        .rejilla {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .campo {
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+        }
+
+        label {
+            font-size: 13px;
+            color: #cbd7ed;
+            overflow-wrap: anywhere;
+        }
+
+        input {
+            width: 100%;
+            padding: 11px;
+            background: #080e1d;
+            color: white;
+            border: 1px solid var(--borde);
+            border-radius: 8px;
+            outline: none;
+        }
+
+        input:focus {
+            border-color: var(--cian);
+            box-shadow: 0 0 0 2px #00ffff20;
+        }
+
+        .acciones {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 22px;
+        }
+
+        button {
+            padding: 12px 18px;
+            border: 0;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: wait;
+        }
+
+        .principal {
+            background: var(--cian);
+            color: #04101b;
+        }
+
+        .secundario {
+            background: #202c46;
+            color: var(--texto);
+        }
+
+        button:hover:not(:disabled) {
+            opacity: 0.88;
+        }
+
+        .resultado {
+            border-left: 4px solid var(--violeta);
+        }
+
+        #mensajeResultado {
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        #detalleResultado {
+            color: var(--secundario);
+            line-height: 1.7;
+            overflow-wrap: anywhere;
+        }
+
+        .aviso {
+            color: #ffd58a;
+            font-size: 13px;
+            line-height: 1.7;
+        }
+
+        footer {
+            text-align: center;
+            color: var(--secundario);
+            font-size: 12px;
+            margin-top: 25px;
+        }
+
+        @media (max-width: 750px) {
+            .rejilla {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 480px) {
+            .rejilla {
+                grid-template-columns: 1fr;
+            }
+
+            .panel {
+                padding: 17px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main class="contenedor">
+
+        <header>
+            <div class="etiqueta">Proyecto académico · Machine Learning</div>
+            <h1>NEURONA <span>MP</span></h1>
+            <p>
+                Sistema experimental de clasificación con la neurona
+                de McCulloch y Pitts
+            </p>
+        </header>
+
+        <section class="panel">
+            <h2>Características de la muestra</h2>
+
+            <p class="descripcion">
+                Introduce las 30 características numéricas de una muestra.
+            </p>
+
+            <form id="formulario">
+                <div id="campos" class="rejilla"></div>
+
+                <div class="acciones">
+                    <button type="submit" id="btnAnalizar" class="principal">
+                        Analizar muestra
+                    </button>
+
+                    <button type="button" id="btnEjemplo" class="secundario">
+                        Cargar ejemplo
+                    </button>
+
+                    <button type="reset" class="secundario">
+                        Limpiar formulario
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <section class="panel resultado" aria-live="polite">
+            <h2>Resultado de la predicción</h2>
+            <p id="mensajeResultado">
+                Esperando los datos de la muestra.
+            </p>
+            <p id="detalleResultado">
+                La respuesta aparecerá aquí después de consultar la API.
+            </p>
+        </section>
+
+        <footer>
+            Práctica de Machine Learning · Neurona de McCulloch y Pitts
+        </footer>
+
+    </main>
+
+    <script>
+        // Dirección de nuestra API desarrollada con FastAPI.
+        const API_URL = "http://127.0.0.1:8000";
+
+        // Nombres exactos de las 30 características esperadas por el modelo.
+        const caracteristicas = [
+            "mean radius",
+            "mean texture",
+            "mean perimeter",
+            "mean area",
+            "mean smoothness",
+            "mean compactness",
+            "mean concavity",
+            "mean concave points",
+            "mean symmetry",
+            "mean fractal dimension",
+            "radius error",
+            "texture error",
+            "perimeter error",
+            "area error",
+            "smoothness error",
+            "compactness error",
+            "concavity error",
+            "concave points error",
+            "symmetry error",
+            "fractal dimension error",
+            "worst radius",
+            "worst texture",
+            "worst perimeter",
+            "worst area",
+            "worst smoothness",
+            "worst compactness",
+            "worst concavity",
+            "worst concave points",
+            "worst symmetry",
+            "worst fractal dimension"
+        ];
+
+        // Valores de una muestra de ejemplo del conjunto de datos.
+        const ejemplo = [
+            17.99, 10.38, 122.8, 1001.0, 0.1184,
+            0.2776, 0.3001, 0.1471, 0.2419, 0.07871,
+            1.095, 0.9053, 8.589, 153.4, 0.006399,
+            0.04904, 0.05373, 0.01587, 0.03003, 0.006193,
+            25.38, 17.33, 184.6, 2019.0, 0.1622,
+            0.6656, 0.7119, 0.2654, 0.4601, 0.1189
+        ];
+
+        const formulario = document.getElementById("formulario");
+        const contenedorCampos = document.getElementById("campos");
+        const btnAnalizar = document.getElementById("btnAnalizar");
+        const btnEjemplo = document.getElementById("btnEjemplo");
+        const mensajeResultado = document.getElementById("mensajeResultado");
+        const detalleResultado = document.getElementById("detalleResultado");
+
+        // Creamos un campo numérico por cada característica.
+        caracteristicas.forEach((nombre, indice) => {
+            const contenedor = document.createElement("div");
+            contenedor.className = "campo";
+
+            const etiqueta = document.createElement("label");
+            etiqueta.htmlFor = `caracteristica-${indice}`;
+            etiqueta.textContent = nombre;
+
+            const entrada = document.createElement("input");
+            entrada.id = `caracteristica-${indice}`;
+            entrada.name = nombre;
+            entrada.type = "number";
+            entrada.step = "any";
+            entrada.required = true;
+            entrada.placeholder = "Introduce un valor";
+
+            contenedor.appendChild(etiqueta);
+            contenedor.appendChild(entrada);
+            contenedorCampos.appendChild(contenedor);
+        });
+
+        // Rellenamos el formulario con una muestra de ejemplo.
+        btnEjemplo.addEventListener("click", () => {
+            caracteristicas.forEach((nombre, indice) => {
+                document.querySelector(
+                    `[name="${nombre}"]`
+                ).value = ejemplo[indice];
+            });
+
+            mensajeResultado.textContent = "Ejemplo cargado";
+            detalleResultado.textContent =
+                "Pulsa «Analizar muestra» para enviar los datos a la API.";
+        });
+
+        // Enviamos las 30 características al endpoint de predicción.
+        formulario.addEventListener("submit", async (evento) => {
+            evento.preventDefault();
+
+            const datos = {};
+
+            // Construimos el objeto con los nombres que espera FastAPI.
+            caracteristicas.forEach((nombre) => {
+                datos[nombre] = Number(
+                    document.querySelector(`[name="${nombre}"]`).value
+                );
+            });
+
+            btnAnalizar.disabled = true;
+            mensajeResultado.textContent = "Analizando muestra...";
+            detalleResultado.textContent =
+                "Esperando respuesta del servidor.";
+
+            try {
+                const respuesta = await fetch(`${API_URL}/predecir`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        caracteristicas: datos
+                    })
+                });
+
+                const resultado = await respuesta.json();
+
+                // Mostramos el error que envíe la API, si existe.
+                if (!respuesta.ok) {
+                    throw new Error(
+                        JSON.stringify(resultado.detail || resultado)
+                    );
+                }
+
+                // Presentamos el resultado con el formato solicitado.
+                // El porcentaje representa la clase mostrada, no una probabilidad médica.
+                const esMaligno = Number(resultado.prediccion) === 0;
+
+                mensajeResultado.textContent = esMaligno
+                    ? "Resultado del análisis: El paciente tiene cáncer."
+                    : "Resultado del análisis: El paciente no tiene cáncer.";
+
+                detalleResultado.textContent = esMaligno
+                    ? "Clasificación: MALIGNO: 100%"
+                    : "Clasificación: BENIGNO: 100%";
+
+            } catch (error) {
+                mensajeResultado.textContent =
+                    "No se pudo completar la predicción.";
+
+                detalleResultado.textContent =
+                    "Comprueba que FastAPI esté ejecutándose y revisa " +
+                    "el error: " + error.message;
+
+            } finally {
+                btnAnalizar.disabled = false;
+            }
+        });
+
+        // Limpiamos el mensaje cuando se reinicia el formulario.
+        formulario.addEventListener("reset", () => {
+            mensajeResultado.textContent =
+                "Esperando los datos de la muestra.";
+
+            detalleResultado.textContent =
+                "La respuesta aparecerá aquí después de consultar la API.";
+        });
+    </script>
+</body>
+</html>
